@@ -262,6 +262,7 @@ Potential future improvements include:
 ### Better Storage
 
  Store screenshots on the cloud instead of locally.
+ 
 
 ### Smarter Screenshot Understanding
 
@@ -294,21 +295,10 @@ Combine:
 
 to make queries more precise.
 
-### Personal AI Memory Layer
+### Additional Organization
 
-Move from simple search toward questions such as:
+Create a favorites and trash folder.
 
-```text
-"What restaurants have I saved near me?"
-
-"What clothes did I want to buy?"
-
-"What activities have I saved for this weekend?"
-
-"Show me travel ideas I saved for Japan."
-
-"What were those shoes I screenshot last month?"
-```
 
 ### Agentic Workflows
 
