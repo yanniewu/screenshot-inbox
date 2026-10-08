@@ -14,7 +14,7 @@ const VALID_CATEGORIES = [
     "activity",
     "event",
     "article",
-    "place",
+    "entertainment",
     "other",
 ] as const;
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
             - description: a short description of why this screenshot might be useful
 
             Category must be one of:
-            food, product, shopping, travel, activity, event, article, place, other
+            food, product, shopping, travel, activity, event, article, entertainment, other
 
             Intent must be one of:
             try, buy, do, visit, watch, read

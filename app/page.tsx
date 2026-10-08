@@ -38,7 +38,7 @@ export default function Home() {
     "activity",
     "event",
     "article",
-    "place",
+    "entertainment",
     "other",
   ];
 
@@ -284,194 +284,206 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-6xl">
+  <main className="dashboard">
+    <div className="dashboard-container">
 
-        <h1 className="text-3xl font-bold text-gray-900">
-          Screenshot Inbox
-        </h1>
+      {/* Top header */}
+      <header className="dashboard-header">
 
-        <p className="mt-2 text-gray-600">
-          Automatically organize and search your screenshots.
-        </p>
+        <div className="search-wrapper">
+          <span className="search-icon">
+            🔍
+          </span>
 
-        {/* Upload */}
-        <div className="mt-8 rounded-xl border-2 border-dashed border-gray-300 bg-white p-10 text-center">
-          {/* <h2 className="text-xl font-semibold text-gray-800">
-            Add a screenshot
-          </h2> */}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => {
+              setSearchQuery(event.target.value);
 
-          <label
-            className={`mt-6 inline-block rounded-lg px-5 py-3 text-white ${uploading
-              ? "cursor-not-allowed bg-gray-400"
-              : "cursor-pointer bg-black hover:bg-gray-800"
-              }`}
-          >
-            {"Choose Screenshots"}
-
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
-
-          {uploading && (
-            <p className="mt-2 text-sm text-gray-500">
-              Uploading {processingIndex} out of {totalPhotos}{" "}
-              {totalPhotos === 1 ? "screenshot" : "screenshots"}.
-            </p>
-          )}
-
-          {!uploading && completedPhotos > 0 && (
-            <p className="mt-3 text-sm font-medium text-green-600">
-              Finished uploading {completedPhotos}{" "}
-              {completedPhotos === 1 ? "screenshot" : "screenshots"}.
-            </p>
-          )}
-
-          {image && (
-            <div className="mt-6">
-              <img
-                src={image}
-                alt="Uploaded screenshot"
-                className="mx-auto max-h-64 rounded-lg shadow"
-              />
-            </div>
-          )}
+              if (!event.target.value.trim()) {
+                setSearchResults(null);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleSemanticSearch();
+              }
+            }}
+            placeholder='Search your screenshots... (e.g. "places to visit", "restaurants in NYC")'
+            className="search-input"
+          />
         </div>
 
-        {/* Inbox */}
-        <section className="mt-12">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Your Screenshots
-            </h2>
+        <label
+          className={`upload-button ${
+            uploading ? "opacity-60 cursor-not-allowed" : ""
+          }`}
+        >
+          <span>↑</span>
+          {uploading ? "Uploading..." : "Upload Screenshots"}
 
-            <span className="text-sm text-gray-500">
-              {filteredScreenshots.length} shown
-            </span>
-          </div>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
 
-          <div className="mt-5 flex gap-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value);
+      </header>
 
-                if (!event.target.value.trim()) {
-                  setSearchResults(null);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  handleSemanticSearch();
-                }
-              }}
-              placeholder="Ask your screenshot memory..."
-              className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-500"
-            />
+      {/* Page heading */}
+      <section className="page-heading">
+        <h1>Your Screenshot Inbox</h1>
 
+        <p>
+          AI-powered organization and search for your screenshots.
+        </p>
+      </section>
+
+      {/* Filters */}
+      <div className="toolbar">
+
+        <div className="category-list">
+          {categories.map((category) => (
             <button
-              onClick={handleSemanticSearch}
-              disabled={searching || !searchQuery.trim()}
-              className="rounded-lg border border-gray-300 bg-white px-5 py-3 font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`category-button ${
+                selectedCategory === category ? "active" : ""
+              }`}
             >
-              {searching ? "Searching..." : "Search"}
-            </button>
-          </div>
-
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${selectedCategory === category
-                  ? "bg-black text-white"
-                  : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100"
-                  }`}
-              >
-                {category === "all"
-                  ? "All"
-                  : category.charAt(0).toUpperCase() +
+              {category === "all"
+                ? "All"
+                : category.charAt(0).toUpperCase() +
                   category.slice(1)}
-              </button>
-            ))}
-          </div>
+            </button>
+          ))}
+        </div>
 
-          {filteredScreenshots.length === 0 ? (
-            <div className="mt-6 rounded-xl bg-white p-10 text-center text-gray-500">
-              {searchQuery || selectedCategory != "all"
-                ? "No screenshots match your search."
-                : "No screenshots yet."}
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredScreenshots.map((screenshot) => (
-                <div
-                  key={screenshot.id}
-                  onClick={() => setSelectedScreenshot(screenshot)}
-                  className="cursor-pointer overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 transition hover:-translate-y-1 hover:shadow-md"
-                >
+        {/* <button className="sort-button">
+          Newest ↓
+        </button> */}
+
+      </div>
+
+      {/* Screenshots */}
+      <section>
+
+        {filteredScreenshots.length === 0 ? (
+          <div className="empty-state">
+            {searchQuery || selectedCategory !== "all"
+              ? "No screenshots match your search."
+              : "No screenshots yet."}
+          </div>
+        ) : (
+          <div className="screenshot-grid">
+
+            {filteredScreenshots.map((screenshot) => (
+              <div
+                key={screenshot.id}
+                onClick={() => setSelectedScreenshot(screenshot)}
+                className="screenshot-card"
+              >
+
+                {/* Image */}
+                <div className="screenshot-image-wrapper">
+
                   <img
                     src={screenshot.imageUrl}
                     alt={screenshot.title ?? "Screenshot"}
-                    className="h-64 w-full object-cover"
+                    className="screenshot-image"
                   />
 
-                  <div className="p-5">
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {screenshot.category && (
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                          {screenshot.category}
-                        </span>
-                      )}
+                  {screenshot.category && (
+                    <span
+                      className={`category-badge ${screenshot.category}`}
+                    >
+                      {screenshot.category}
+                    </span>
+                  )}
 
-                      {screenshot.intent && (
-                        <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                          {screenshot.intent}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="mt-3 text-lg font-semibold text-gray-900">
-                      {screenshot.title ?? "Untitled screenshot"}
-                    </h3>
+                </div>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
-                      {screenshot.description ??
-                        "AI analysis pending..."}
-                    </p>
+                {/* Content */}
+                <div className="screenshot-content">
+
+                  <h3 className="screenshot-title">
+                    {screenshot.title ?? "Untitled screenshot"}
+                  </h3>
+
+                  <p className="screenshot-description">
+                    {screenshot.description ??
+                      "AI analysis pending..."}
+                  </p>
+
+                  <div className="screenshot-footer">
+
+                    {screenshot.intent && (
+                      <span className="intent-badge">
+                        {screenshot.intent}
+                      </span>
+                    )}
+
+                    <span className="screenshot-date">
+                      {new Date(
+                        screenshot.createdAt
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </span>
 
                     <button
-                      onClick={() => handleDelete(screenshot.id)}
-                      className="mt-4 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(screenshot.id);
+                      }}
+                      className="delete-button"
+                      aria-label="Delete screenshot"
                     >
-                      Delete
+                     Delete
                     </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
 
+                  </div>
+
+                </div>
+
+              </div>
+            ))}
+
+          </div>
+        )}
+
+      </section>
+
+    </div>
+
+    {/* Upload status */}
+    {uploading && (
+      <div className="upload-status">
+        Uploading {processingIndex} of {totalPhotos} screenshots...
       </div>
-     {selectedScreenshot && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setSelectedScreenshot(null)}
-        >
-          <img
-            src={selectedScreenshot.imageUrl}
-            alt={selectedScreenshot.title ?? "Screenshot"}
-            className="max-h-full max-w-full object-contain"
-          />
-        </div>
-      )}
-    </main>
-  );
+    )}
+
+    {/* Preview */}
+    {selectedScreenshot && (
+      <div
+        className="preview-overlay"
+        onClick={() => setSelectedScreenshot(null)}
+      >
+        <img
+          src={selectedScreenshot.imageUrl}
+          alt={selectedScreenshot.title ?? "Screenshot"}
+          className="preview-image"
+        />
+      </div>
+    )}
+
+  </main>
+);
 }
