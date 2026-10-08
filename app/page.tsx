@@ -26,8 +26,8 @@ export default function Home() {
   const [processingIndex, setProcessingIndex] = useState(0);
   const [totalPhotos, setTotalPhotos] = useState(0);
   const [completedPhotos, setCompletedPhotos] = useState(0);
-  const [selectedScreenshot, setSelectedScreenshot] =
-    useState<Screenshot | null>(null);
+  const [selectedScreenshot, setSelectedScreenshot] =useState<Screenshot | null>(null);
+  const [failedUploads, setFailedUploads] = useState<string[]>([]);
 
   const categories = [
     "all",
@@ -122,35 +122,38 @@ export default function Home() {
     });
   }
 
-  async function handleFileChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const files = event.target.files;
-    if (files) setTotalPhotos(files.length);
+  
+async function handleFileChange(
+  event: React.ChangeEvent<HTMLInputElement>
+) {
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
 
-    if (!files || files.length === 0) return;
+  setTotalPhotos(files.length);
+  setSaved(false);
+  setUploading(true);
+  setCompletedPhotos(0);
+  setFailedUploads([]);
 
-    setSaved(false);
-    setUploading(true);
-    setCompletedPhotos(0);
+  const failures: string[] = [];
 
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let previewUrl: string | null = null;
+      let savedScreenshotId: string | null = null;
 
-        // Get current image number
-        setProcessingIndex(i + 1);
+      setProcessingIndex(i + 1);
 
-        // Show the current image
-        const previewUrl = URL.createObjectURL(file);
+      try {
+        previewUrl = URL.createObjectURL(file);
         setImage(previewUrl);
 
-        // Resize image for Gemini
+        // Resize the image for AI analysis.
         const resizedImage = await resizeImage(file);
 
-        // Save original screenshot
+        // Upload the original screenshot.
         const uploadFormData = new FormData();
-
         uploadFormData.append("file", file);
 
         const uploadResponse = await fetch("/api/screenshots", {
@@ -159,35 +162,26 @@ export default function Home() {
         });
 
         if (!uploadResponse.ok) {
-          if (uploadResponse.status === 409) {
-            const duplicateData = await uploadResponse.json();
+          let reason = `Upload failed (HTTP ${uploadResponse.status})`;
 
-            alert(duplicateData.error || `${file.name} is already in your library.`);
-            continue;
+          try {
+            const data = await uploadResponse.json();
+            reason = data.error || reason;
+          } catch {
+            // Use the HTTP status if no JSON response is available.
           }
 
-          throw new Error(
-            `Failed to upload ${file.name}`
-          );
+          throw new Error(reason);
         }
 
         const savedScreenshot = await uploadResponse.json();
-
+        savedScreenshotId =savedScreenshot.id;
         setSaved(true);
 
-        // Send resized image to Gemini
+        // Analyze the uploaded screenshot with AI.
         const aiFormData = new FormData();
-
-        aiFormData.append(
-          "file",
-          resizedImage,
-          "screenshot.jpg"
-        );
-
-        aiFormData.append(
-          "screenshotId",
-          savedScreenshot.id
-        );
+        aiFormData.append("file", resizedImage, "screenshot.jpg");
+        aiFormData.append("screenshotId", savedScreenshot.id);
 
         const aiResponse = await fetch("/api/ai", {
           method: "POST",
@@ -195,31 +189,72 @@ export default function Home() {
         });
 
         if (!aiResponse.ok) {
-          throw new Error(
-            `AI analysis failed for ${file.name}`
-          );
+          let reason = `AI analysis failed (HTTP ${aiResponse.status})`;
+
+          try {
+            const data = await aiResponse.json();
+            reason = data.error || reason;
+          } catch {
+            // Use the HTTP status if no JSON response is available.
+          }
+
+          throw new Error(reason);
         }
 
         await aiResponse.json();
+      } catch (error) {
+  console.error(`Failed to process ${file.name}:`, error);
 
-        // Clean up preview URL
-        URL.revokeObjectURL(previewUrl);
+  let reason =
+    error instanceof Error ? error.message : "Unknown error";
+
+  // If the screenshot was saved but later processing failed,
+  // delete the screenshot from the database and disk.
+  if (savedScreenshotId) {
+    try {
+      const deleteResponse = await fetch("/api/screenshots", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: savedScreenshotId }),
+      });
+
+      if (!deleteResponse.ok) {
+        reason += " (Automatic cleanup failed; screenshot may remain.)";
       }
-
-      // Reload inbox after all screenshots finish
-      await loadScreenshots();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setUploading(false);
-      setImage(null)
-      setCompletedPhotos(files.length);
+    } catch (deleteError) {
+      console.error(
+        `Could not clean up ${file.name}:`,
+        deleteError
+      );
+      reason += " (Automatic cleanup failed; screenshot may remain.)";
     }
-
-    // Allow selecting the same files again later
-    event.target.value = "";
   }
 
+  failures.push(`${file.name} — ${reason}`);
+} finally {
+  if (previewUrl) {
+    URL.revokeObjectURL(previewUrl);
+  }
+}
+
+      // Count this file as processed, even if it failed.
+      setCompletedPhotos(i + 1);
+    }
+  } finally {
+    setUploading(false);
+    setImage(null);
+    setCompletedPhotos(files.length);
+    event.target.value = "";
+
+    // Save the complete failure list for the popup.
+    setFailedUploads(failures);
+
+    // Refresh the inbox after the entire batch.
+    await loadScreenshots();
+  }
+}
   async function handleDelete(id: string) {
     const confirmed = window.confirm(
       "Are you sure you want to delete this screenshot?"
@@ -470,6 +505,69 @@ export default function Home() {
       </div>
     )}
 
+{/* Upload failures popup */}
+{failedUploads.length > 0 && (
+  <div
+    className="preview-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="upload-failures-title"
+    onClick={() => setFailedUploads([])}
+  >
+    <div
+      onClick={(event) => event.stopPropagation()}
+      style={{
+        background: "white",
+        color: "#111827",
+        borderRadius: "12px",
+        padding: "24px",
+        width: "min(560px, calc(100vw - 32px))",
+        maxHeight: "80vh",
+        overflowY: "auto",
+      }}
+    >
+      <h2
+        id="upload-failures-title"
+        style={{ fontSize: "1.25rem", fontWeight: 700 }}
+      >
+        {failedUploads.length} file
+        {failedUploads.length === 1 ? "" : "s"} failed
+      </h2>
+
+      <p style={{ margin: "8px 0 16px" }}>
+        Try reuploading the failed file{failedUploads.length === 1 ? "" : "s"}.
+      </p>
+
+      <ul
+        style={{
+          listStyle: "disc",
+          paddingLeft: "20px",
+          overflowWrap: "anywhere",
+        }}
+      >
+        {failedUploads.map((failure, index) => (
+          <li key={index} style={{ marginBottom: "10px" }}>
+            {failure}
+          </li>
+        ))}
+      </ul>
+
+      <button
+        type="button"
+        onClick={() => setFailedUploads([])}
+        style={{
+          marginTop: "16px",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          background: "#111827",
+          color: "white",
+        }}
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
     {/* Preview */}
     {selectedScreenshot && (
       <div
