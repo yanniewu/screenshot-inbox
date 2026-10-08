@@ -28,7 +28,9 @@ export default function Home() {
   const [completedPhotos, setCompletedPhotos] = useState(0);
   const [selectedScreenshot, setSelectedScreenshot] =useState<Screenshot | null>(null);
   const [failedUploads, setFailedUploads] = useState<string[]>([]);
-
+  const [deleteScreenshotId, setDeleteScreenshotId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  
   const categories = [
     "all",
     "food",
@@ -255,34 +257,42 @@ async function handleFileChange(
     await loadScreenshots();
   }
 }
-  async function handleDelete(id: string) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this screenshot?"
+
+
+async function handleDelete() {
+  if (!deleteScreenshotId) return;
+
+  setDeleteError("");
+
+  try {
+    const response = await fetch("/api/screenshots", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id: deleteScreenshotId }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to delete screenshot.");
+    }
+
+    setScreenshots((current) =>
+      current.filter(
+        (screenshot) => screenshot.id !== deleteScreenshotId
+      )
     );
 
-    if (!confirmed) return;
+    // Close the popup after a successful deletion.
+    setDeleteScreenshotId(null);
+  } catch (error) {
+    console.error(error);
 
-    try {
-      const response = await fetch("/api/screenshots", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete screenshot");
-      }
-
-      setScreenshots((current) =>
-        current.filter((screenshot) => screenshot.id !== id)
-      );
-    } catch (error) {
-      console.error(error);
-      alert("Could not delete screenshot.");
-    }
+    setDeleteError("Could not delete screenshot. Please try again.");
   }
+}
+
+
 
   async function handleSemanticSearch() {
     const query = searchQuery.trim();
@@ -473,16 +483,19 @@ async function handleFileChange(
                       })}
                     </span>
 
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleDelete(screenshot.id);
-                      }}
-                      className="delete-button"
-                      aria-label="Delete screenshot"
-                    >
-                     Delete
-                    </button>
+<button
+  onClick={(event) => {
+    event.stopPropagation();
+    setDeleteError("");
+    setDeleteScreenshotId(screenshot.id);
+  }}
+  className="delete-button"
+  aria-label="Delete screenshot"
+>
+  Delete
+</button>
+
+
 
                   </div>
 
@@ -505,48 +518,36 @@ async function handleFileChange(
       </div>
     )}
 
+
 {/* Upload failures popup */}
 {failedUploads.length > 0 && (
   <div
-    className="preview-overlay"
+    className="upload-failures-overlay"
     role="dialog"
     aria-modal="true"
     aria-labelledby="upload-failures-title"
     onClick={() => setFailedUploads([])}
   >
     <div
+      className="upload-failures-popup"
       onClick={(event) => event.stopPropagation()}
-      style={{
-        background: "white",
-        color: "#111827",
-        borderRadius: "12px",
-        padding: "24px",
-        width: "min(560px, calc(100vw - 32px))",
-        maxHeight: "80vh",
-        overflowY: "auto",
-      }}
     >
       <h2
         id="upload-failures-title"
-        style={{ fontSize: "1.25rem", fontWeight: 700 }}
+        className="upload-failures-title"
       >
         {failedUploads.length} file
         {failedUploads.length === 1 ? "" : "s"} failed
       </h2>
 
-      <p style={{ margin: "8px 0 16px" }}>
-        Try reuploading the failed file{failedUploads.length === 1 ? "" : "s"}.
+      <p className="upload-failures-message">
+        Try reuploading the failed file
+        {failedUploads.length === 1 ? "" : "s"}.
       </p>
 
-      <ul
-        style={{
-          listStyle: "disc",
-          paddingLeft: "20px",
-          overflowWrap: "anywhere",
-        }}
-      >
+      <ul className="upload-failures-list">
         {failedUploads.map((failure, index) => (
-          <li key={index} style={{ marginBottom: "10px" }}>
+          <li key={`${index}-${failure}`}>
             {failure}
           </li>
         ))}
@@ -554,20 +555,70 @@ async function handleFileChange(
 
       <button
         type="button"
+        className="upload-failures-close"
         onClick={() => setFailedUploads([])}
-        style={{
-          marginTop: "16px",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          background: "#111827",
-          color: "white",
-        }}
       >
         Close
       </button>
     </div>
   </div>
 )}
+
+```tsx
+{/* Delete confirmation popup */}
+{deleteScreenshotId !== null && (
+  <div
+    className="upload-failures-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="delete-confirmation-title"
+    onClick={() => {
+      setDeleteScreenshotId(null);
+      setDeleteError("");
+    }}
+  >
+    <div
+      className="delete-confirmation-popup"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <p
+        className="upload-failures-message"
+      >
+        Are you sure you want to delete this screenshot?
+      </p>
+
+      {deleteError && (
+        <p className="delete-error" role="alert">
+          {deleteError}
+        </p>
+      )}
+
+      <div className="delete-confirmation-actions">
+        <button
+          type="button"
+          className="delete-cancel-button"
+          onClick={() => {
+            setDeleteScreenshotId(null);
+            setDeleteError("");
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="delete-confirm-button"
+          onClick={handleDelete}
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+
     {/* Preview */}
     {selectedScreenshot && (
       <div
