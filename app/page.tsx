@@ -17,16 +17,12 @@ type Screenshot = {
 
 export default function Home() {
   const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
-  const [image, setImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Screenshot[] | null>(null);
-  const [searching, setSearching] = useState(false);
   const [processingIndex, setProcessingIndex] = useState(0);
   const [totalPhotos, setTotalPhotos] = useState(0);
-  const [completedPhotos, setCompletedPhotos] = useState(0);
   const [selectedScreenshot, setSelectedScreenshot] =useState<Screenshot | null>(null);
   const [failedUploads, setFailedUploads] = useState<string[]>([]);
   const [deleteScreenshotId, setDeleteScreenshotId] = useState<string | null>(null);
@@ -70,9 +66,37 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    loadScreenshots();
-  }, []);
+  
+useEffect(() => {
+  let cancelled = false;
+
+  async function fetchScreenshots() {
+    try {
+      const response = await fetch("/api/screenshots");
+
+      if (!response.ok) {
+        throw new Error("Failed to load screenshots");
+      }
+
+      const data = await response.json();
+
+      if (!cancelled) {
+        setScreenshots(data);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        console.error(error);
+      }
+    }
+  }
+
+  fetchScreenshots();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
 
   async function resizeImage(file: File): Promise<Blob> {
     const image = new Image();
@@ -133,9 +157,7 @@ async function handleFileChange(
   if (!files || files.length === 0) return;
 
   setTotalPhotos(files.length);
-  setSaved(false);
   setUploading(true);
-  setCompletedPhotos(0);
   setFailedUploads([]);
 
   const failures: string[] = [];
@@ -150,7 +172,6 @@ async function handleFileChange(
 
       try {
         previewUrl = URL.createObjectURL(file);
-        setImage(previewUrl);
 
         // Resize the image for AI analysis.
         const resizedImage = await resizeImage(file);
@@ -204,10 +225,6 @@ async function handleFileChange(
 
         const savedScreenshot = await uploadResponse.json();
         savedScreenshotId = savedScreenshot.id;
-        setSaved(true);
-
-        savedScreenshotId =savedScreenshot.id;
-        setSaved(true);
 
         // Analyze the uploaded screenshot with AI.
         const aiFormData = new FormData();
@@ -270,13 +287,9 @@ async function handleFileChange(
   }
 }
 
-      // Count this file as processed, even if it failed.
-      setCompletedPhotos(i + 1);
     }
   } finally {
     setUploading(false);
-    setImage(null);
-    setCompletedPhotos(files.length);
     event.target.value = "";
 
     // Save the complete failure list for the popup.
@@ -331,8 +344,6 @@ async function handleDelete() {
       return;
     }
 
-    setSearching(true);
-
     try {
       const response = await fetch("/api/search", {
         method: "POST",
@@ -352,8 +363,6 @@ async function handleDelete() {
     } catch (error) {
       console.error(error);
       alert("Could not search screenshots.");
-    } finally {
-      setSearching(false);
     }
   }
 
@@ -597,7 +606,6 @@ async function handleDelete() {
   </div>
 )}
 
-```tsx
 {/* Delete confirmation popup */}
 {deleteScreenshotId !== null && (
   <div

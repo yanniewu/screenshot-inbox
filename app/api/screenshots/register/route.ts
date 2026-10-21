@@ -1,7 +1,6 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createHash } from "crypto";
 
 export const runtime = "nodejs";
 
