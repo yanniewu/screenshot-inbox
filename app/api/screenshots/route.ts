@@ -1,29 +1,47 @@
+
 import { NextResponse } from "next/server";
-import { unlink, writeFile } from "fs/promises";
-import path from "path";
+import { put, del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { createHash } from "crypto";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
+  let uploadedBlobUrl: string | undefined;
+
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get("file");
 
-    if (!file) {
+    if (!(file instanceof File) || file.size === 0) {
       return NextResponse.json(
-        { error: "No file uploaded" },
+        { error: "Please upload a non-empty file." },
         { status: 400 }
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { error: "Only image files are allowed." },
+        { status: 400 }
+      );
+    }
 
-    const fileHash = createHash("sha256").update(buffer).digest("hex");
+    // Limit uploads to 10 MB.
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Image must be 10 MB or smaller." },
+        { status: 413 }
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const fileHash = createHash("sha256")
+      .update(buffer)
+      .digest("hex");
+
     const existingScreenshot = await prisma.screenshot.findUnique({
-      where: {
-        fileHash,
-      },
+      where: { fileHash },
     });
 
     if (existingScreenshot) {
@@ -35,31 +53,46 @@ export async function POST(request: Request) {
         },
         { status: 409 }
       );
-}
+    }
 
-    const filename = `${Date.now()}-${file.name}`;
-    const filepath = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      filename
+    const safeFilename = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .slice(-100) || "screenshot";
+
+    const blob = await put(
+      `screenshots/${crypto.randomUUID()}-${safeFilename}`,
+      buffer,
+      {
+        access: "public",
+        contentType: file.type,
+        addRandomSuffix: false,
+      }
     );
 
-    await writeFile(filepath, buffer);
+    uploadedBlobUrl = blob.url;
 
     const screenshot = await prisma.screenshot.create({
       data: {
-        imageUrl: `/uploads/${filename}`,
+        imageUrl: blob.url,
         fileHash,
       },
     });
 
     return NextResponse.json(screenshot);
   } catch (error) {
-    console.error(error);
+    console.error("Screenshot upload failed:", error);
+
+    // Avoid leaving an orphaned Blob if the database write fails.
+    if (uploadedBlobUrl) {
+      try {
+        await del(uploadedBlobUrl);
+      } catch (cleanupError) {
+        console.error("Blob cleanup failed:", cleanupError);
+      }
+    }
 
     return NextResponse.json(
-      { error: "Failed to upload screenshot" },
+      { error: "Failed to upload screenshot." },
       { status: 500 }
     );
   }
@@ -68,17 +101,15 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const screenshots = await prisma.screenshot.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(screenshots);
   } catch (error) {
-    console.error(error);
+    console.error("Fetching screenshots failed:", error);
 
     return NextResponse.json(
-      { error: "Failed to fetch screenshots" },
+      { error: "Failed to fetch screenshots." },
       { status: 500 }
     );
   }
@@ -86,54 +117,55 @@ export async function GET() {
 
 export async function DELETE(request: Request) {
   try {
-    const { id } = await request.json();
+    const body = await request.json();
+    const id = body?.id;
 
-    if (!id) {
+    if (typeof id !== "string" || !id) {
       return NextResponse.json(
-        { error: "Screenshot ID is required" },
+        { error: "Screenshot ID is required." },
         { status: 400 }
       );
     }
 
     const screenshot = await prisma.screenshot.findUnique({
-      where: {
-        id,
-      },
+      where: { id },
     });
 
     if (!screenshot) {
       return NextResponse.json(
-        { error: "Screenshot not found" },
+        { error: "Screenshot not found." },
         { status: 404 }
       );
     }
 
-    const filepath = path.join(
-      process.cwd(),
-      "public",
-      screenshot.imageUrl
-    );
+    // Remove the database record and the persistent Blob.
+    // Legacy local /uploads URLs are not Vercel Blob URLs.
+    await prisma.screenshot.delete({
+      where: { id },
+    });
 
-    try {
-      await unlink(filepath);
-    } catch (error) {
-      console.log("Image file could not be deleted:", error);
+    if (screenshot.imageUrl.startsWith("https://")) {
+      try {
+        await del(screenshot.imageUrl);
+      } catch (blobError) {
+        console.error("Blob deletion failed:", blobError);
+
+        return NextResponse.json(
+          {
+            success: true,
+            warning:
+              "Screenshot record was deleted, but its stored image could not be removed.",
+          }
+        );
+      }
     }
 
-    await prisma.screenshot.delete({
-      where: {
-        id,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
+    console.error("Screenshot deletion failed:", error);
 
     return NextResponse.json(
-      { error: "Failed to delete screenshot" },
+      { error: "Failed to delete screenshot." },
       { status: 500 }
     );
   }
