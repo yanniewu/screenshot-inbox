@@ -279,6 +279,13 @@ body {
 /* Screenshot grid               */
 /* ----------------------------- */
 
+.results-amount {
+  margin-top: 15px;
+
+  color: #7885a5;
+  font-size: 12px;
+}
+
 .screenshot-grid {
   margin-top: 27px;
 

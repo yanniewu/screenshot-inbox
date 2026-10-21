@@ -415,6 +415,10 @@ async function handleDelete() {
 
       </div>
 
+      <p className="results-amount">
+  {filteredScreenshots.length}{" "}
+  {filteredScreenshots.length === 1 ? "result" : "results"}
+</p>
       {/* Screenshots */}
       <section>
 
