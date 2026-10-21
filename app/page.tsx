@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 type Screenshot = {
   id: string;
@@ -154,17 +155,42 @@ async function handleFileChange(
         // Resize the image for AI analysis.
         const resizedImage = await resizeImage(file);
 
-        // Upload the original screenshot.
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", file);
+      
+        // Upload the original image directly to Vercel Blob.
+        const fileBuffer = await file.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest(
+          "SHA-256",
+          fileBuffer
+        );
 
-        const uploadResponse = await fetch("/api/screenshots", {
+        const fileHash = Array.from(new Uint8Array(hashBuffer))
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+
+        const blob = await upload(
+          file.name,
+          file,
+          {
+            access: "public",
+            handleUploadUrl: "/api/blob-upload",
+            contentType: file.type,
+          }
+        );
+
+        // Register the uploaded image in the database.
+        const uploadResponse = await fetch("/api/screenshots/register", {
           method: "POST",
-          body: uploadFormData,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imageUrl: blob.url,
+            fileHash,
+          }),
         });
 
         if (!uploadResponse.ok) {
-          let reason = `Upload failed (HTTP ${uploadResponse.status})`;
+          let reason = `Registration failed (HTTP ${uploadResponse.status})`;
 
           try {
             const data = await uploadResponse.json();
@@ -177,6 +203,9 @@ async function handleFileChange(
         }
 
         const savedScreenshot = await uploadResponse.json();
+        savedScreenshotId = savedScreenshot.id;
+        setSaved(true);
+
         savedScreenshotId =savedScreenshot.id;
         setSaved(true);
 
