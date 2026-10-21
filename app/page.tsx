@@ -568,7 +568,6 @@ async function handleDelete() {
   </div>
 )}
 
-```tsx
 {/* Delete confirmation popup */}
 {deleteScreenshotId !== null && (
   <div
@@ -620,8 +619,6 @@ async function handleDelete() {
     </div>
   </div>
 )}
-```
-
 
     {/* Preview */}
     {selectedScreenshot && (
