@@ -445,10 +445,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* <button className="sort-button">
-          Newest ↓
-        </button> */}
-
         </div>
 
         <p className="results-amount">
@@ -655,21 +651,88 @@ export default function Home() {
           </div>
         </div>
       )}
+      ```
 
 
-      {/* Preview */}
+
+      {/* Screenshot preview */}
       {selectedScreenshot && (
         <div
           className="preview-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="preview-title"
           onClick={() => setSelectedScreenshot(null)}
         >
-          <img
-            src={selectedScreenshot.imageUrl}
-            alt={selectedScreenshot.title ?? "Screenshot"}
-            className="preview-image"
-          />
+          <div
+            className="preview-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="preview-close"
+              aria-label="Close screenshot preview"
+              onClick={() => setSelectedScreenshot(null)}
+            >
+              ×
+            </button>
+
+            <div className="preview-image-panel">
+              <img
+                src={selectedScreenshot.imageUrl}
+                alt={selectedScreenshot.title ?? "Screenshot"}
+                className="preview-image"
+              />
+            </div>
+
+            <aside className="preview-details">
+              {selectedScreenshot.category && (
+                <span
+                  className={`category-badge ${selectedScreenshot.category}`}
+                >
+                  {selectedScreenshot.category}
+                </span>
+              )}
+
+              <h2 id="preview-title" className="preview-title">
+                {selectedScreenshot.title ?? "Untitled screenshot"}
+              </h2>
+
+              <p className="preview-description">
+                {selectedScreenshot.description ??
+                  "AI analysis pending..."}
+              </p>
+
+              {selectedScreenshot.intent && (
+                <div className="preview-metadata">
+                  <span className="preview-metadata-label">
+                    Intent
+                  </span>
+                  <span className="intent-badge">
+                    {selectedScreenshot.intent}
+                  </span>
+                </div>
+              )}
+
+              <div className="preview-metadata">
+                <span className="preview-metadata-label">
+                  Saved
+                </span>
+                <span>
+                  {new Date(
+                    selectedScreenshot.createdAt
+                  ).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            </aside>
+          </div>
         </div>
       )}
+
 
     </main>
   );
