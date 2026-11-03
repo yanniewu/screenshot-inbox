@@ -23,11 +23,11 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<Screenshot[] | null>(null);
   const [processingIndex, setProcessingIndex] = useState(0);
   const [totalPhotos, setTotalPhotos] = useState(0);
-  const [selectedScreenshot, setSelectedScreenshot] =useState<Screenshot | null>(null);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
   const [failedUploads, setFailedUploads] = useState<string[]>([]);
   const [deleteScreenshotId, setDeleteScreenshotId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
-  
+
   const categories = [
     "all",
     "food",
@@ -66,36 +66,36 @@ export default function Home() {
     }
   }
 
-  
-useEffect(() => {
-  let cancelled = false;
 
-  async function fetchScreenshots() {
-    try {
-      const response = await fetch("/api/screenshots");
+  useEffect(() => {
+    let cancelled = false;
 
-      if (!response.ok) {
-        throw new Error("Failed to load screenshots");
-      }
+    async function fetchScreenshots() {
+      try {
+        const response = await fetch("/api/screenshots");
 
-      const data = await response.json();
+        if (!response.ok) {
+          throw new Error("Failed to load screenshots");
+        }
 
-      if (!cancelled) {
-        setScreenshots(data);
-      }
-    } catch (error) {
-      if (!cancelled) {
-        console.error(error);
+        const data = await response.json();
+
+        if (!cancelled) {
+          setScreenshots(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+        }
       }
     }
-  }
 
-  fetchScreenshots();
+    fetchScreenshots();
 
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
 
   async function resizeImage(file: File): Promise<Blob> {
@@ -149,190 +149,190 @@ useEffect(() => {
     });
   }
 
-  
-async function handleFileChange(
-  event: React.ChangeEvent<HTMLInputElement>
-) {
-  const files = event.target.files;
-  if (!files || files.length === 0) return;
 
-  setTotalPhotos(files.length);
-  setUploading(true);
-  setFailedUploads([]);
+  async function handleFileChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-  const failures: string[] = [];
+    setTotalPhotos(files.length);
+    setUploading(true);
+    setFailedUploads([]);
 
-  try {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      let previewUrl: string | null = null;
-      let savedScreenshotId: string | null = null;
+    const failures: string[] = [];
 
-      setProcessingIndex(i + 1);
-
-      try {
-        previewUrl = URL.createObjectURL(file);
-
-        // Resize the image for AI analysis.
-        const resizedImage = await resizeImage(file);
-
-      
-        // Upload the original image directly to Vercel Blob.
-        const fileBuffer = await file.arrayBuffer();
-        const hashBuffer = await crypto.subtle.digest(
-          "SHA-256",
-          fileBuffer
-        );
-
-        const fileHash = Array.from(new Uint8Array(hashBuffer))
-          .map((byte) => byte.toString(16).padStart(2, "0"))
-          .join("");
-
-        const blob = await upload(
-          file.name,
-          file,
-          {
-            access: "public",
-            handleUploadUrl: "/api/blob-upload",
-            contentType: file.type,
-          }
-        );
-
-        // Register the uploaded image in the database.
-        const uploadResponse = await fetch("/api/screenshots/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            imageUrl: blob.url,
-            fileHash,
-          }),
-        });
-
-        if (!uploadResponse.ok) {
-          let reason = `Registration failed (HTTP ${uploadResponse.status})`;
-
-          try {
-            const data = await uploadResponse.json();
-            reason = data.error || reason;
-          } catch {
-            // Use the HTTP status if no JSON response is available.
-          }
-
-          throw new Error(reason);
-        }
-
-        const savedScreenshot = await uploadResponse.json();
-        savedScreenshotId = savedScreenshot.id;
-
-        // Analyze the uploaded screenshot with AI.
-        const aiFormData = new FormData();
-        aiFormData.append("file", resizedImage, "screenshot.jpg");
-        aiFormData.append("screenshotId", savedScreenshot.id);
-
-        const aiResponse = await fetch("/api/ai", {
-          method: "POST",
-          body: aiFormData,
-        });
-
-        if (!aiResponse.ok) {
-          let reason = `AI analysis failed (HTTP ${aiResponse.status})`;
-
-          try {
-            const data = await aiResponse.json();
-            reason = data.error || reason;
-          } catch {
-            // Use the HTTP status if no JSON response is available.
-          }
-
-          throw new Error(reason);
-        }
-
-        await aiResponse.json();
-      } catch (error) {
-  console.error(`Failed to process ${file.name}:`, error);
-
-  let reason =
-    error instanceof Error ? error.message : "Unknown error";
-
-  // If the screenshot was saved but later processing failed,
-  // delete the screenshot from the database and disk.
-  if (savedScreenshotId) {
     try {
-      const deleteResponse = await fetch("/api/screenshots", {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        let previewUrl: string | null = null;
+        let savedScreenshotId: string | null = null;
+
+        setProcessingIndex(i + 1);
+
+        try {
+          previewUrl = URL.createObjectURL(file);
+
+          // Resize the image for AI analysis.
+          const resizedImage = await resizeImage(file);
+
+
+          // Upload the original image directly to Vercel Blob.
+          const fileBuffer = await file.arrayBuffer();
+          const hashBuffer = await crypto.subtle.digest(
+            "SHA-256",
+            fileBuffer
+          );
+
+          const fileHash = Array.from(new Uint8Array(hashBuffer))
+            .map((byte) => byte.toString(16).padStart(2, "0"))
+            .join("");
+
+          const blob = await upload(
+            file.name,
+            file,
+            {
+              access: "public",
+              handleUploadUrl: "/api/blob-upload",
+              contentType: file.type,
+            }
+          );
+
+          // Register the uploaded image in the database.
+          const uploadResponse = await fetch("/api/screenshots/register", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              imageUrl: blob.url,
+              fileHash,
+            }),
+          });
+
+          if (!uploadResponse.ok) {
+            let reason = `Registration failed (HTTP ${uploadResponse.status})`;
+
+            try {
+              const data = await uploadResponse.json();
+              reason = data.error || reason;
+            } catch {
+              // Use the HTTP status if no JSON response is available.
+            }
+
+            throw new Error(reason);
+          }
+
+          const savedScreenshot = await uploadResponse.json();
+          savedScreenshotId = savedScreenshot.id;
+
+          // Analyze the uploaded screenshot with AI.
+          const aiFormData = new FormData();
+          aiFormData.append("file", resizedImage, "screenshot.jpg");
+          aiFormData.append("screenshotId", savedScreenshot.id);
+
+          const aiResponse = await fetch("/api/ai", {
+            method: "POST",
+            body: aiFormData,
+          });
+
+          if (!aiResponse.ok) {
+            let reason = `AI analysis failed (HTTP ${aiResponse.status})`;
+
+            try {
+              const data = await aiResponse.json();
+              reason = data.error || reason;
+            } catch {
+              // Use the HTTP status if no JSON response is available.
+            }
+
+            throw new Error(reason);
+          }
+
+          await aiResponse.json();
+        } catch (error) {
+          console.error(`Failed to process ${file.name}:`, error);
+
+          let reason =
+            error instanceof Error ? error.message : "Unknown error";
+
+          // If the screenshot was saved but later processing failed,
+          // delete the screenshot from the database and disk.
+          if (savedScreenshotId) {
+            try {
+              const deleteResponse = await fetch("/api/screenshots", {
+                method: "DELETE",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ id: savedScreenshotId }),
+              });
+
+              if (!deleteResponse.ok) {
+                reason += " (Automatic cleanup failed; screenshot may remain.)";
+              }
+            } catch (deleteError) {
+              console.error(
+                `Could not clean up ${file.name}:`,
+                deleteError
+              );
+              reason += " (Automatic cleanup failed; screenshot may remain.)";
+            }
+          }
+
+          failures.push(`${file.name} — ${reason}`);
+        } finally {
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
+        }
+
+      }
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+
+      // Save the complete failure list for the popup.
+      setFailedUploads(failures);
+
+      // Refresh the inbox after the entire batch.
+      await loadScreenshots();
+    }
+  }
+
+
+  async function handleDelete() {
+    if (!deleteScreenshotId) return;
+
+    setDeleteError("");
+
+    try {
+      const response = await fetch("/api/screenshots", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id: savedScreenshotId }),
+        body: JSON.stringify({ id: deleteScreenshotId }),
       });
 
-      if (!deleteResponse.ok) {
-        reason += " (Automatic cleanup failed; screenshot may remain.)";
+      if (!response.ok) {
+        throw new Error("Failed to delete screenshot.");
       }
-    } catch (deleteError) {
-      console.error(
-        `Could not clean up ${file.name}:`,
-        deleteError
+
+      setScreenshots((current) =>
+        current.filter(
+          (screenshot) => screenshot.id !== deleteScreenshotId
+        )
       );
-      reason += " (Automatic cleanup failed; screenshot may remain.)";
+
+      // Close the popup after a successful deletion.
+      setDeleteScreenshotId(null);
+    } catch (error) {
+      console.error(error);
+
+      setDeleteError("Could not delete screenshot. Please try again.");
     }
   }
-
-  failures.push(`${file.name} — ${reason}`);
-} finally {
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-  }
-}
-
-    }
-  } finally {
-    setUploading(false);
-    event.target.value = "";
-
-    // Save the complete failure list for the popup.
-    setFailedUploads(failures);
-
-    // Refresh the inbox after the entire batch.
-    await loadScreenshots();
-  }
-}
-
-
-async function handleDelete() {
-  if (!deleteScreenshotId) return;
-
-  setDeleteError("");
-
-  try {
-    const response = await fetch("/api/screenshots", {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id: deleteScreenshotId }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to delete screenshot.");
-    }
-
-    setScreenshots((current) =>
-      current.filter(
-        (screenshot) => screenshot.id !== deleteScreenshotId
-      )
-    );
-
-    // Close the popup after a successful deletion.
-    setDeleteScreenshotId(null);
-  } catch (error) {
-    console.error(error);
-
-    setDeleteError("Could not delete screenshot. Please try again.");
-  }
-}
 
 
 
@@ -367,313 +367,310 @@ async function handleDelete() {
   }
 
   return (
-  <main className="dashboard">
-    <div className="dashboard-container">
+    <main className="dashboard">
+      <div className="dashboard-container">
 
-      {/* Top header */}
-      <header className="dashboard-header">
+        {/* Top header */}
+        <header className="dashboard-header">
 
-        <div className="search-wrapper">
-          <span className="search-icon">
-            🔍
-          </span>
+          <div className="search-wrapper">
+            <span className="search-icon">
+              🔍
+            </span>
 
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(event) => {
-              setSearchQuery(event.target.value);
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
 
-              if (!event.target.value.trim()) {
-                setSearchResults(null);
-              }
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                handleSemanticSearch();
-              }
-            }}
-            placeholder='Search your screenshots... (e.g. "places to visit", "restaurants in NYC")'
-            className="search-input"
-          />
-        </div>
+                if (!event.target.value.trim()) {
+                  setSearchResults(null);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleSemanticSearch();
+                }
+              }}
+              placeholder='Search your screenshots... (e.g. "places to visit", "restaurants in NYC")'
+              className="search-input"
+            />
+          </div>
 
-        <label
-          className={`upload-button ${
-            uploading ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-        >
-          <span>↑</span>
-          {uploading ? "Uploading..." : "Upload Screenshots"}
-
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileChange}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
-
-      </header>
-
-      {/* Page heading */}
-      <section className="page-heading">
-        <h1>Your Screenshot Inbox</h1>
-
-        <p>
-          AI-powered organization and search for your screenshots.
-        </p>
-      </section>
-
-      {/* Filters */}
-      <div className="toolbar">
-
-        <div className="category-list">
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`category-button ${
-                selectedCategory === category ? "active" : ""
+          <label
+            className={`upload-button ${uploading ? "opacity-60 cursor-not-allowed" : ""
               }`}
-            >
-              {category === "all"
-                ? "All"
-                : category.charAt(0).toUpperCase() +
-                  category.slice(1)}
-            </button>
-          ))}
-        </div>
+          >
+            <span>↑</span>
+            {uploading ? "Uploading..." : "Upload Screenshots"}
 
-        {/* <button className="sort-button">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileChange}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+
+        </header>
+
+        {/* Page heading */}
+        <section className="page-heading">
+          <h1>Your Screenshot Inbox</h1>
+
+          <p>
+            AI-powered organization and search for your screenshots.
+          </p>
+        </section>
+
+        {/* Filters */}
+        <div className="toolbar">
+
+          <div className="category-list">
+            {categories.map((category) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`category-button ${selectedCategory === category ? "active" : ""
+                  }`}
+              >
+                {category === "all"
+                  ? "All"
+                  : category.charAt(0).toUpperCase() +
+                  category.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* <button className="sort-button">
           Newest ↓
         </button> */}
 
-      </div>
+        </div>
 
-      <p className="results-amount">
-  {filteredScreenshots.length}{" "}
-  {filteredScreenshots.length === 1 ? "result" : "results"}
-</p>
-      {/* Screenshots */}
-      <section>
+        <p className="results-amount">
+          {filteredScreenshots.length}{" "}
+          {filteredScreenshots.length === 1 ? "result" : "results"}
+        </p>
+        {/* Screenshots */}
+        <section>
 
-        {filteredScreenshots.length === 0 ? (
-          <div className="empty-state">
-            {searchQuery || selectedCategory !== "all"
-              ? "No screenshots match your search."
-              : "No screenshots yet."}
-          </div>
-        ) : (
-          <div className="screenshot-grid">
+          {filteredScreenshots.length === 0 ? (
+            <div className="empty-state">
+              {searchQuery || selectedCategory !== "all"
+                ? "No screenshots match your search."
+                : "No screenshots yet."}
+            </div>
+          ) : (
+            <div className="screenshot-grid">
 
-            {filteredScreenshots.map((screenshot) => (
-              <div
-                key={screenshot.id}
-                onClick={() => setSelectedScreenshot(screenshot)}
-                className="screenshot-card"
-              >
+              {filteredScreenshots.map((screenshot) => (
+                <div
+                  key={screenshot.id}
+                  onClick={() => setSelectedScreenshot(screenshot)}
+                  className="screenshot-card"
+                >
 
-                {/* Image */}
-                <div className="screenshot-image-wrapper">
+                  {/* Image */}
+                  <div className="screenshot-image-wrapper">
 
-                  <img
-                    src={screenshot.imageUrl}
-                    alt={screenshot.title ?? "Screenshot"}
-                    className="screenshot-image"
-                  />
+                    <img
+                      src={screenshot.imageUrl}
+                      alt={screenshot.title ?? "Screenshot"}
+                      className="screenshot-image"
+                    />
 
-                  {screenshot.category && (
-                    <span
-                      className={`category-badge ${screenshot.category}`}
-                    >
-                      {screenshot.category}
-                    </span>
-                  )}
-
-                </div>
-
-                {/* Content */}
-                <div className="screenshot-content">
-
-                  <h3 className="screenshot-title">
-                    {screenshot.title ?? "Untitled screenshot"}
-                  </h3>
-
-                  <p className="screenshot-description">
-                    {screenshot.description ??
-                      "AI analysis pending..."}
-                  </p>
-
-                  <div className="screenshot-footer">
-
-                    {screenshot.intent && (
-                      <span className="intent-badge">
-                        {screenshot.intent}
+                    {screenshot.category && (
+                      <span
+                        className={`category-badge ${screenshot.category}`}
+                      >
+                        {screenshot.category}
                       </span>
                     )}
 
-                    <span className="screenshot-date">
-                      {new Date(
-                        screenshot.createdAt
-                      ).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
+                  </div>
 
-<button
-  onClick={(event) => {
-    event.stopPropagation();
-    setDeleteError("");
-    setDeleteScreenshotId(screenshot.id);
-  }}
-  className="delete-button"
-  aria-label="Delete screenshot"
->
-  Delete
-</button>
+                  {/* Content */}
+                  <div className="screenshot-content">
+
+                    <h3 className="screenshot-title">
+                      {screenshot.title ?? "Untitled screenshot"}
+                    </h3>
+
+                    <p className="screenshot-description">
+                      {screenshot.description ??
+                        "AI analysis pending..."}
+                    </p>
+
+                    <div className="screenshot-footer">
+
+                      {screenshot.intent && (
+                        <span className="intent-badge">
+                          {screenshot.intent}
+                        </span>
+                      )}
+
+                      <span className="screenshot-date">
+                        {new Date(
+                          screenshot.createdAt
+                        ).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteError("");
+                          setDeleteScreenshotId(screenshot.id);
+                        }}
+                        className="delete-button"
+                        aria-label="Delete screenshot"
+                      >
+                        Delete
+                      </button>
 
 
+
+                    </div>
 
                   </div>
 
                 </div>
+              ))}
 
-              </div>
-            ))}
+            </div>
+          )}
 
-          </div>
-        )}
+        </section>
 
-      </section>
-
-    </div>
-
-    {/* Upload status */}
-    {uploading && (
-      <div className="upload-status">
-        Uploading {processingIndex} of {totalPhotos} screenshots...
       </div>
-    )}
 
-
-{/* Upload failures popup */}
-{failedUploads.length > 0 && (
-  <div
-    className="upload-failures-overlay"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="upload-failures-title"
-    onClick={() => setFailedUploads([])}
-  >
-    <div
-      className="upload-failures-popup"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <h2
-        id="upload-failures-title"
-        className="upload-failures-title"
-      >
-        {failedUploads.length} file
-        {failedUploads.length === 1 ? "" : "s"} failed
-      </h2>
-
-      <p className="upload-failures-message">
-        Try reuploading the failed file
-        {failedUploads.length === 1 ? "" : "s"}.
-      </p>
-
-      <ul className="upload-failures-list">
-        {failedUploads.map((failure, index) => (
-          <li key={`${index}-${failure}`}>
-            {failure}
-          </li>
-        ))}
-      </ul>
-
-      <button
-        type="button"
-        className="upload-failures-close"
-        onClick={() => setFailedUploads([])}
-      >
-        Close
-      </button>
-    </div>
-  </div>
-)}
-
-{/* Delete confirmation popup */}
-{deleteScreenshotId !== null && (
-  <div
-    className="upload-failures-overlay"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="delete-confirmation-title"
-    onClick={() => {
-      setDeleteScreenshotId(null);
-      setDeleteError("");
-    }}
-  >
-    <div
-      className="delete-confirmation-popup"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <p
-        className="upload-failures-message"
-      >
-        Are you sure you want to delete this screenshot?
-      </p>
-
-      {deleteError && (
-        <p className="delete-error" role="alert">
-          {deleteError}
-        </p>
+      {/* Upload status */}
+      {uploading && (
+        <div className="upload-status">
+          Uploading {processingIndex} of {totalPhotos} screenshots...
+        </div>
       )}
 
-      <div className="delete-confirmation-actions">
-        <button
-          type="button"
-          className="delete-cancel-button"
+
+      {/* Upload failures popup */}
+      {failedUploads.length > 0 && (
+        <div
+          className="upload-failures-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upload-failures-title"
+          onClick={() => setFailedUploads([])}
+        >
+          <div
+            className="upload-failures-popup"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2
+              id="upload-failures-title"
+              className="upload-failures-title"
+            >
+              {failedUploads.length} file
+              {failedUploads.length === 1 ? "" : "s"} failed
+            </h2>
+
+            <p className="upload-failures-message">
+              Try reuploading the failed file
+              {failedUploads.length === 1 ? "" : "s"}.
+            </p>
+
+            <ul className="upload-failures-list">
+              {failedUploads.map((failure, index) => (
+                <li key={`${index}-${failure}`}>
+                  {failure}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              type="button"
+              className="upload-failures-close"
+              onClick={() => setFailedUploads([])}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation popup */}
+      {deleteScreenshotId !== null && (
+        <div
+          className="upload-failures-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirmation-title"
           onClick={() => {
             setDeleteScreenshotId(null);
             setDeleteError("");
           }}
         >
-          Cancel
-        </button>
+          <div
+            className="delete-confirmation-popup"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p
+              className="upload-failures-message"
+            >
+              Are you sure you want to delete this screenshot?
+            </p>
 
-        <button
-          type="button"
-          className="delete-confirm-button"
-          onClick={handleDelete}
+            {deleteError && (
+              <p className="delete-error" role="alert">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="delete-confirmation-actions">
+              <button
+                type="button"
+                className="delete-cancel-button"
+                onClick={() => {
+                  setDeleteScreenshotId(null);
+                  setDeleteError("");
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="delete-confirm-button"
+                onClick={handleDelete}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* Preview */}
+      {selectedScreenshot && (
+        <div
+          className="preview-overlay"
+          onClick={() => setSelectedScreenshot(null)}
         >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-```
+          <img
+            src={selectedScreenshot.imageUrl}
+            alt={selectedScreenshot.title ?? "Screenshot"}
+            className="preview-image"
+          />
+        </div>
+      )}
 
-
-    {/* Preview */}
-    {selectedScreenshot && (
-      <div
-        className="preview-overlay"
-        onClick={() => setSelectedScreenshot(null)}
-      >
-        <img
-          src={selectedScreenshot.imageUrl}
-          alt={selectedScreenshot.title ?? "Screenshot"}
-          className="preview-image"
-        />
-      </div>
-    )}
-
-  </main>
-);
+    </main>
+  );
 }
