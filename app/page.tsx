@@ -686,13 +686,6 @@ export default function Home() {
             </div>
 
             <aside className="preview-details">
-              {selectedScreenshot.category && (
-                <span
-                  className={`category-badge ${selectedScreenshot.category}`}
-                >
-                  {selectedScreenshot.category}
-                </span>
-              )}
 
               <h2 id="preview-title" className="preview-title">
                 {selectedScreenshot.title ?? "Untitled screenshot"}
@@ -705,11 +698,11 @@ export default function Home() {
 
               {selectedScreenshot.intent && (
                 <div className="preview-metadata">
-                  <span className="preview-metadata-label">
-                    Intent
-                  </span>
                   <span className="intent-badge">
                     {selectedScreenshot.intent}
+                  </span>
+                  <span className="intent-badge">
+                    {selectedScreenshot.category}
                   </span>
                 </div>
               )}
