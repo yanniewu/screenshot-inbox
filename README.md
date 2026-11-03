@@ -6,7 +6,7 @@
 
 Screenshot Inbox is an AI-powered visual inbox that helps you save, organize, and rediscover screenshots. Upload images, let AI understand their contents, and find what you need later with natural-language semantic search.
 
-## ✨ Features
+## Features
 
 - 📸 **Single and multiple uploads** — Upload PNG, JPEG, WebP, and GIF images up to 10 MB each.
 - 🤖 **AI-powered image understanding** — Analyze screenshots using Google Gemini.
@@ -19,42 +19,11 @@ Screenshot Inbox is an AI-powered visual inbox that helps you save, organize, an
 - 🖼️ **Image previews** — Open screenshots in a larger view.
 - 🗑️ **Screenshot deletion** — Remove screenshots and attempt to delete their stored images.
 
-## 🧠 AI-Powered Screenshot Understanding
+## AI-Powered Screenshot Understanding
 
 Each screenshot is analyzed using Google's Gemini models. The application attempts to identify the screenshot's main subject and generate useful metadata.
 
-### Categories
-
-- `food`
-- `product`
-- `shopping`
-- `travel`
-- `activity`
-- `event`
-- `article`
-- `place`
-- `other`
-
-### Intent
-
-- `try`
-- `buy`
-- `do`
-- `visit`
-- `watch`
-- `read`
-
-Each analyzed screenshot can include:
-
-- **Title** — A short, memorable label.
-- **Description** — A concise explanation of what the screenshot represents.
-- **Category** — A classification of its content.
-- **Intent** — The likely reason for saving it.
-- **Embedding** — A vector representation used for semantic search.
-
-AI-generated metadata is intended to help organize screenshots and may not always be accurate.
-
-## 🔎 Semantic Search
+## Semantic Search
 
 Screenshot Inbox uses vector embeddings to make screenshots searchable by meaning.
 
@@ -64,15 +33,8 @@ Screenshot Inbox uses vector embeddings to make screenshots searchable by meanin
 4. When you search, the query is embedded in the same vector space.
 5. The application retrieves screenshots with similar semantic meaning.
 
-For example, searching for:
 
-```text
-places I want to visit
-```
-
-can surface travel ideas or saved places even when the screenshot's metadata uses different wording.
-
-## 🏗️ Architecture
+## Architecture
 
 Screenshot Inbox uses direct browser-to-Blob uploads so the original image does not need to pass through a serverless function's request body.
 
@@ -113,7 +75,7 @@ Screenshot Inbox uses direct browser-to-Blob uploads so the original image does 
 5. The generated metadata and embedding are stored in the database.
 6. Semantic search uses `/api/search` to find relevant screenshots.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 | --- | --- |
@@ -132,7 +94,7 @@ Screenshot Inbox uses direct browser-to-Blob uploads so the original image does 
 - `gemini-3.5-flash-lite` — Screenshot image analysis and metadata generation.
 - `gemini-embedding-2` — Semantic embeddings.
 
-## 🗄️ Database
+## Database
 
 Each screenshot is represented by a `Screenshot` record in PostgreSQL.
 
@@ -159,7 +121,7 @@ fileHash
 Prisma manages database access, while `pgvector` enables vector similarity search.
 
 
-## 🔌 API Routes
+## API Routes
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -170,13 +132,11 @@ Prisma manages database access, while `pgvector` enables vector similarity searc
 | `POST` | `/api/ai` | Analyze a screenshot and save its metadata and embedding |
 | `POST` | `/api/search` | Search screenshots using semantic similarity |
 
-## ⚠️ Current Limitations
+## Roadmap
 
-- **No user accounts:** The application does not currently provide authentication or per-user access controls. Screenshots belong to a shared application rather than individual users.
-- **Exact duplicate detection only:** Different files containing visually identical images may not be detected as duplicates.
-- **AI accuracy:** Generated categories, descriptions, and intent classifications may occasionally be incorrect.
+### User Accounts
 
-## 🗺️ Roadmap
+Provide authentication so that screenshots belong to individual users.
 
 ### Smarter Screenshot Understanding
 
