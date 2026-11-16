@@ -27,6 +27,7 @@ export default function Home() {
   const [failedUploads, setFailedUploads] = useState<string[]>([]);
   const [deleteScreenshotId, setDeleteScreenshotId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   const categories = [
     "all",
@@ -86,6 +87,10 @@ export default function Home() {
       } catch (error) {
         if (!cancelled) {
           console.error(error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
         }
       }
     }
@@ -448,13 +453,16 @@ export default function Home() {
         </div>
 
         <p className="results-amount">
-          {filteredScreenshots.length}{" "}
-          {filteredScreenshots.length === 1 ? "result" : "results"}
-        </p>
+  {isLoading
+    ? "Loading..."
+    : `${filteredScreenshots.length} ${filteredScreenshots.length === 1 ? "result" : "results"}`}
+</p>
         {/* Screenshots */}
         <section>
 
-          {filteredScreenshots.length === 0 ? (
+          {isLoading ? (
+  <div className="empty-state">Loading your screenshots...</div>
+) : filteredScreenshots.length === 0 ? (
             <div className="empty-state">
               {searchQuery || selectedCategory !== "all"
                 ? "No screenshots match your search."
@@ -477,6 +485,8 @@ export default function Home() {
                       src={screenshot.imageUrl}
                       alt={screenshot.title ?? "Screenshot"}
                       className="screenshot-image"
+                      loading="lazy"
+                      decoding="async"
                     />
 
                     {screenshot.category && (
