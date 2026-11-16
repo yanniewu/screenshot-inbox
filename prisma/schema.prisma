@@ -24,4 +24,6 @@ model Screenshot {
 
   processingStatus String @default("pending")
   fileHash String? @unique
+
+  @@index([createdAt])
 }
