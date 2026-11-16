@@ -5,10 +5,26 @@ import { del } from "@vercel/blob";
 export const runtime = "nodejs";
 
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(Number(searchParams.get("limit")) || 60, 200);
+    const cursor = searchParams.get("cursor");
+
     const screenshots = await prisma.screenshot.findMany({
-      orderBy: { createdAt: "desc" },
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        imageUrl: true,
+        createdAt: true,
+        category: true,
+        intent: true,
+        title: true,
+        description: true,
+        processingStatus: true,
+      },
     });
 
     return NextResponse.json(screenshots);
