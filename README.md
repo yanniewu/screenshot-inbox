@@ -2,7 +2,7 @@
 
 **Turn screenshots into structured, searchable memories.**
 
-[**Try Screenshot Inbox →**](https://screenshot-inbox-5ftxqevo0-yannie1.vercel.app/)
+[**Try Screenshot Inbox →**](https://screenshot-inbox-zeta.vercel.app/)
 
 Screenshot Inbox is an AI-powered visual inbox that helps you save, organize, and rediscover screenshots. Upload images, let AI understand their contents, and find what you need later with natural-language semantic search.
 
