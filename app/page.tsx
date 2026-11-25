@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
-import Image from "next/image";
+import NextImage from "next/image";
 
 type Screenshot = {
   id: string;
@@ -482,7 +482,7 @@ export default function Home() {
                   {/* Image */}
                   <div className="screenshot-image-wrapper">
 
-                    <img
+                    <NextImage
                       src={screenshot.imageUrl}
                       alt={screenshot.title ?? "Screenshot"}
                       className="screenshot-image"
