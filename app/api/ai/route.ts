@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { prisma } from "@/lib/prisma";
+import { getUser, unauthorized } from "@/lib/session";
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -28,13 +29,15 @@ const VALID_INTENTS = [
 ] as const;
 
 export async function POST(request: Request) {
+    // Only set once the signed-in user is confirmed to own the screenshot,
+    // so the catch block can never mark someone else's screenshot as failed.
     let screenshotId: string | null = null;
 
     try {
         const formData = await request.formData();
 
         const file = formData.get("file") as File | null;
-        screenshotId = formData.get("screenshotId") as string | null;
+        const rawId = formData.get("screenshotId");
 
         if (!file) {
             return NextResponse.json(
@@ -43,17 +46,35 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!screenshotId) {
+        if (typeof rawId !== "string" || !rawId) {
             return NextResponse.json(
                 { error: "No screenshot ID provided" },
                 { status: 400 }
             );
         }
 
+        const id: string = rawId;
+
+        const user = await getUser(request);
+        if (!user) {
+            return unauthorized();
+        }
+
+        const owned = await prisma.screenshot.findFirst({
+            where: { id, userId: user.id },
+            select: { id: true },
+        });
+        if (!owned) {
+            return NextResponse.json(
+                { error: "Screenshot not found." },
+                { status: 404 }
+            );
+        }
+
+        screenshotId = id;
+
         await prisma.screenshot.update({
-            where: {
-                id: screenshotId,
-            },
+            where: { id },
             data: {
                 processingStatus: "processing",
             },
@@ -74,7 +95,6 @@ export async function POST(request: Request) {
                     },
                 },
                 {
-
                     text: `
             Analyze this screenshot for a personal screenshot organizer.
 
@@ -164,9 +184,7 @@ export async function POST(request: Request) {
         }
 
         const screenshot = await prisma.screenshot.update({
-            where: {
-                id: screenshotId,
-            },
+            where: { id },
             data: {
                 category: analysis.category,
                 intent: analysis.intent,
@@ -179,7 +197,7 @@ export async function POST(request: Request) {
         await prisma.$executeRaw`
             UPDATE "Screenshot"
             SET embedding = ${`[${embedding.join(",")}]`}::vector
-            WHERE id = ${screenshotId}
+            WHERE id = ${id}
             `;
 
         return NextResponse.json({

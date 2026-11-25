@@ -1,6 +1,7 @@
 
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import { getUser } from "@/lib/session";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,14 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
+        const user = await getUser(request);
+        if (!user) throw new Error("Unauthorized");
+
+        // Uploads must go into the signed-in user's own folder.
+        if (!pathname.startsWith(`screenshots/${user.id}/`)) {
+          throw new Error("Invalid upload path.");
+        }
+        
         const filename = pathname.split("/").pop() ?? "";
 
         if (!/\.(png|jpe?g|webp|gif)$/i.test(filename)) {
@@ -38,10 +47,10 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Blob upload authorization failed:", error);
-
+    const unauthorized = error instanceof Error && error.message === "Unauthorized";
     return NextResponse.json(
-      { error: "Could not authorize image upload." },
-      { status: 400 }
+      { error: unauthorized ? "Sign in required." : "Could not authorize image upload." },
+      { status: unauthorized ? 401 : 400 }
     );
   }
 }

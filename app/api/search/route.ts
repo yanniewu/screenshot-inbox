@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { prisma } from "@/lib/prisma";
+import { getUser, unauthorized } from "@/lib/session";
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -8,6 +9,8 @@ const ai = new GoogleGenAI({
 
 export async function POST(request: Request) {
     try {
+        const user = await getUser(request);
+if (!user) return unauthorized();
         const { query } = await request.json();
 
         if (!query || typeof query !== "string") {
@@ -48,7 +51,8 @@ export async function POST(request: Request) {
         1 - (embedding <=> ${vectorString}::vector) AS similarity
         FROM "Screenshot"
         WHERE embedding IS NOT NULL
-        AND 1 - (embedding <=> ${vectorString}::vector) >= 0.5
+        AND "userId" = ${user.id}
+        AND 1 - (embedding <=> ${vectorString}::vector) >= 0.6
         ORDER BY embedding <=> ${vectorString}::vector
         LIMIT 20
     `;

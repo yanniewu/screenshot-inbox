@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { upload } from "@vercel/blob/client";
 import NextImage from "next/image";
+import { authClient } from "@/lib/auth-client";
 
 type Screenshot = {
   id: string;
@@ -29,6 +30,9 @@ export default function Home() {
   const [deleteScreenshotId, setDeleteScreenshotId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  const { data: session, isPending } = authClient.useSession();
+  const userId = session?.user.id;
 
   const categories = [
     "all",
@@ -70,38 +74,29 @@ export default function Home() {
 
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchScreenshots() {
-      try {
-        const response = await fetch("/api/screenshots");
-
-        if (!response.ok) {
-          throw new Error("Failed to load screenshots");
-        }
-
-        const data = await response.json();
-
-        if (!cancelled) {
-          setScreenshots(data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error(error);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
+    if (isPending) return;
+    if (!userId) {
+      setScreenshots([]);
+      setIsLoading(false);
+      return;
     }
 
-    fetchScreenshots();
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/screenshots");
+        if (!response.ok) throw new Error("Failed to load screenshots");
+        const data = await response.json();
+        if (!cancelled) setScreenshots(data);
+      } catch (error) {
+        if (!cancelled) console.error(error);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [userId, isPending]);
 
 
   async function resizeImage(file: File): Promise<Blob> {
@@ -195,13 +190,9 @@ export default function Home() {
             .join("");
 
           const blob = await upload(
-            file.name,
+            `screenshots/${userId}/${file.name}`,
             file,
-            {
-              access: "public",
-              handleUploadUrl: "/api/blob-upload",
-              contentType: file.type,
-            }
+            { access: "public", handleUploadUrl: "/api/blob-upload", contentType: file.type }
           );
 
           // Register the uploaded image in the database.
@@ -372,6 +363,27 @@ export default function Home() {
     }
   }
 
+  if (isPending) {
+    return <main className="dashboard"><div className="empty-state">Loading...</div></main>;
+  }
+
+  if (!session) {
+    return (
+      <main className="dashboard">
+        <div className="empty-state">
+          <h1>Screenshot Inbox</h1>
+          <p>Sign in to save and search your screenshots.</p>
+          <button
+            className="upload-button"
+            onClick={() => authClient.signIn.social({ provider: "google" })}
+          >
+            Continue with Google
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="dashboard">
       <div className="dashboard-container">
@@ -421,6 +433,16 @@ export default function Home() {
             />
           </label>
 
+          <button
+            className="delete-cancel-button"
+            onClick={async () => {
+              await authClient.signOut();
+              setScreenshots([]);
+              setSearchResults(null);
+            }}
+          >
+            Sign out
+          </button>
         </header>
 
         {/* Page heading */}
@@ -454,16 +476,16 @@ export default function Home() {
         </div>
 
         <p className="results-amount">
-  {isLoading
-    ? "Loading..."
-    : `${filteredScreenshots.length} ${filteredScreenshots.length === 1 ? "result" : "results"}`}
-</p>
+          {isLoading
+            ? "Loading..."
+            : `${filteredScreenshots.length} ${filteredScreenshots.length === 1 ? "result" : "results"}`}
+        </p>
         {/* Screenshots */}
         <section>
 
           {isLoading ? (
-  <div className="empty-state">Loading your screenshots...</div>
-) : filteredScreenshots.length === 0 ? (
+            <div className="empty-state">Loading your screenshots...</div>
+          ) : filteredScreenshots.length === 0 ? (
             <div className="empty-state">
               {searchQuery || selectedCategory !== "all"
                 ? "No screenshots match your search."
@@ -663,7 +685,6 @@ export default function Home() {
           </div>
         </div>
       )}
-      ```
 
 
 
